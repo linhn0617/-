@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Todo List</title>
+  </head>
+  <body>
+    <h1
+      style="
+        color: rgb(4, 16, 12);
+        text-align: center;
+        font-family: Arial, Helvetica, sans-serif;
+      "
+    >
+      Todo List
+    </h1>
+
+    <form id="todoForm">
+        <div style = "text-align: center;">
+            <label for="todoItem" >待辦事項：</label>
+            <input type="text" id="todoItem" required />
+            <br></br>
+            <label for="todoDateItem">日期：</label>
+            <input type="datetime-local" id="todoTime" required />
+            <br></br>
+            <button type="submit">加入待辦事項清單</button>
+            <br></br>
+            <br></br>
+            <br></br>
+            <br></br>
+            <br></br>
+            <label>已完成事項</label>
+        </div>
+    </form>
+    <ul id="todoList"></ul>
+
+    <script>
+      const todoForm = document.getElementById("todoForm");
+      const todoItemInput = document.getElementById("todoItem");
+      const todoList = document.getElementById("todoList");
+      const todoTimeInput = document.getElementById("todoTime");
+
+      todoForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        const todoItem = document.getElementById("todoItem").value;
+        const todoTimeISO = document.getElementById("todoTime").value;
+        const todoTime = new Date(todoTimeISO);
+
+        try {
+          const response = await fetch("http://localhost:3000/todos", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              items: todoItem,
+              time: todoTime,
+              completed: false,
+            }),
+          });
+
+          const newTodo = await response.json();
+          console.log("新的待辦事項：", newTodo);
+
+          const li = document.createElement("li");
+          li.textContent = `${newTodo.items} - ${todoTime.toLocaleString()}`;
+          todoList.appendChild(li);
+        } catch (e) {
+          console.error("加入清單錯誤", e);
+        }
+      });
+
+      window.addEventListener("load", async () => {
+        try {
+          const response = await fetch("http://localhost:3000/todos");
+
+          const todos = await response.json();
+
+          todos.forEach((todo) => {
+            const li = document.createElement("li");
+            li.id = `todo-${todo._id}`;
+
+            li.textContent = `${todo.items} - ${new Date(
+              todo.time
+            ).toLocaleString()}`;
+
+            const deleteButton = createDeleteButton(todo._id); // 確保這裡的參數是正確的
+            li.appendChild(deleteButton);
+
+            todoList.appendChild(li);
+          });
+
+          // 清空輸入欄位
+          document.getElementById("todoItem").value = "";
+        } catch (e) {
+          console.error("發生錯誤：", e);
+        }
+      });
+
+      function createDeleteButton(itemId) {
+        const button = document.createElement("button");
+        button.textContent = "刪除";
+        button.addEventListener("click", async () => {
+          console.log("Delete button clicked for itemId:", itemId);
+          try {
+            const response = await fetch(
+              `http://localhost:3000/todos/${itemId}`,
+              { method: "DELETE" }
+            );
+            console.log("Delete response:", response);
+
+            if (response.ok) {
+              const liToRemove = document.getElementById(`todo-${itemId}`);
+              liToRemove.remove();
+            } else {
+              console.error("刪除失敗");
+            }
+          } catch (e) {
+            console.error("刪除錯誤", e);
+          }
+        });
+        return button;
+      }
+    </script>
+  </body>
+</html>
