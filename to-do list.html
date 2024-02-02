@@ -4,42 +4,72 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Todo List</title>
+    <style>
+      body {
+        text-align: center;
+        background-image: url("背景圖片.jpeg");
+      }
+
+      #todoForm {
+        display: inline-block;
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      #todoList,
+      #finishList {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 20px;
+      }
+
+      #todoForm > div,
+      #todoList > div,
+      #finishList > div {
+        margin-bottom: 10px;
+      }
+    </style>
   </head>
   <body>
     <h1
-      style="
-        color: rgb(4, 16, 12);
-        text-align: center;
-        font-family: Arial, Helvetica, sans-serif;
-      "
+      style="color: rgb(4, 16, 12); font-family: Arial, Helvetica, sans-serif"
     >
       Todo List
     </h1>
 
     <form id="todoForm">
-        <div style = "text-align: center;">
-            <label for="todoItem" >待辦事項：</label>
-            <input type="text" id="todoItem" required />
-            <br></br>
-            <label for="todoDateItem">日期：</label>
-            <input type="datetime-local" id="todoTime" required />
-            <br></br>
-            <button type="submit">加入待辦事項清單</button>
-            <br></br>
-            <br></br>
-            <br></br>
-            <br></br>
-            <br></br>
-            <label>已完成事項</label>
-        </div>
+      <div>
+        <label for="todoItem">待辦事項：</label>
+        <input type="text" id="todoItem" placeholder="Add new todo here..." required />
+        <br></br>
+      </div>
+      <div>
+        <label for="todoDateItem">日期：</label>
+        <input type="datetime-local" id="todoTime" placeholder="Add time here..." required />
+        <br></br>
+      </div>
+      <button type="submit">加入待辦事項清單</button>
+      <br></br>
+      <div style="margin-top: 10px">
+        <label>待辦事項</label>
+      </div>
+      <div id="todoList"></div>
+      <div style="margin-top: 10px">
+        <label>已完成事項</label>
+      </div>
+      <div id="finishList"></div>
     </form>
-    <ul id="todoList"></ul>
 
     <script>
       const todoForm = document.getElementById("todoForm");
       const todoItemInput = document.getElementById("todoItem");
-      const todoList = document.getElementById("todoList");
+      const todoListContainer = document.getElementById("todoList");
+      const finishListContainer = document.getElementById("finishList");
       const todoTimeInput = document.getElementById("todoTime");
+
+      // 重新整理頁面時，從本地存儲中讀取已完成事項
+      const finishList = JSON.parse(localStorage.getItem("finishList")) || [];
 
       todoForm.addEventListener("submit", async (event) => {
         event.preventDefault();
@@ -64,9 +94,38 @@
           const newTodo = await response.json();
           console.log("新的待辦事項：", newTodo);
 
-          const li = document.createElement("li");
-          li.textContent = `${newTodo.items} - ${todoTime.toLocaleString()}`;
-          todoList.appendChild(li);
+          const checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.id = `todo-${newTodo._id}`;
+
+          const label = document.createElement("label");
+          label.setAttribute("for", `todo-${newTodo._id}`);
+          label.textContent = `${todoItem} - ${todoTime.toLocaleString()}`;
+
+          const deleteButton = document.createElement("button");
+          deleteButton.textContent = "刪除";
+          deleteButton.addEventListener("click", async () => {
+            try {
+              // 發送刪除請求到伺服器
+              await fetch(`http://localhost:3000/todos/${newTodo._id}`, {
+                method: "DELETE",
+              });
+
+              // 從畫面中移除代辦事項
+              const todoItemDiv = document.getElementById(`todoDiv-${newTodo._id}`);
+              todoItemDiv.remove();
+            } catch (error) {
+              console.error("刪除代辦事項錯誤", error);
+            }
+          });
+
+          const todoItemDiv = document.createElement("div");
+          todoItemDiv.id = `todoDiv-${newTodo._id}`;
+          todoItemDiv.appendChild(checkbox);
+          todoItemDiv.appendChild(label);
+          todoItemDiv.appendChild(deleteButton);
+
+          todoListContainer.appendChild(todoItemDiv);
         } catch (e) {
           console.error("加入清單錯誤", e);
         }
@@ -78,18 +137,70 @@
 
           const todos = await response.json();
 
-          todos.forEach((todo) => {
-            const li = document.createElement("li");
-            li.id = `todo-${todo._id}`;
+          // 重新整理頁面時，從本地存儲中讀取已完成事項
+          const finishList =
+            JSON.parse(localStorage.getItem("finishList")) || [];
 
-            li.textContent = `${todo.items} - ${new Date(
+          todos.forEach((todo) => {
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.id = `todo-${todo._id}`;
+
+            const label = document.createElement("label");
+            label.setAttribute("for", `todo-${todo._id}`);
+            label.textContent = `${todo.items} - ${new Date(
               todo.time
             ).toLocaleString()}`;
 
-            const deleteButton = createDeleteButton(todo._id); // 確保這裡的參數是正確的
-            li.appendChild(deleteButton);
+            const deleteButton = document.createElement("button");
+            deleteButton.textContent = "刪除";
+            deleteButton.addEventListener("click", async () => {
+              try {
+                // 發送刪除請求到伺服器
+                await fetch(`http://localhost:3000/todos/${todo._id}`, {
+                  method: "DELETE",
+                });
 
-            todoList.appendChild(li);
+                // 從畫面中移除代辦事項
+                const todoItemDiv = document.getElementById(`todoDiv-${todo._id}`);
+                todoItemDiv.remove();
+              } catch (error) {
+                console.error("刪除代辦事項錯誤", error);
+              }
+            });
+
+            const todoItemDiv = document.createElement("div");
+            todoItemDiv.id = `todoDiv-${todo._id}`;
+            todoItemDiv.appendChild(checkbox);
+            todoItemDiv.appendChild(label);
+            todoItemDiv.appendChild(deleteButton);
+
+            if (finishList.some((item) => item._id === todo._id)) {
+              // 如果在已完成事項清單中，放到已完成事項的下方
+              finishListContainer.appendChild(todoItemDiv);
+              checkbox.checked = true; // 根據本地存儲的勾選狀態更新 checkbox
+            } else {
+              // 否則放到待辦事項的下方
+              todoListContainer.appendChild(todoItemDiv);
+            }
+
+            checkbox.addEventListener("change", async () => {
+              // ...（後面的程式碼保持不變）
+
+              // 移動到對應的位置
+              if (checkbox.checked) {
+                finishListContainer.appendChild(todoItemDiv);
+                // 更新本地存儲的已完成事項清單
+                finishList.push(todo);
+                localStorage.setItem("finishList", JSON.stringify(finishList));
+              } else {
+                todoListContainer.appendChild(todoItemDiv);
+                // 從已完成事項清單中刪除
+                const index = finishList.findIndex((item) => item._id === todo._id);
+                finishList.splice(index, 1);
+                localStorage.setItem("finishList", JSON.stringify(finishList));
+              }
+            });
           });
 
           // 清空輸入欄位
@@ -98,31 +209,6 @@
           console.error("發生錯誤：", e);
         }
       });
-
-      function createDeleteButton(itemId) {
-        const button = document.createElement("button");
-        button.textContent = "刪除";
-        button.addEventListener("click", async () => {
-          console.log("Delete button clicked for itemId:", itemId);
-          try {
-            const response = await fetch(
-              `http://localhost:3000/todos/${itemId}`,
-              { method: "DELETE" }
-            );
-            console.log("Delete response:", response);
-
-            if (response.ok) {
-              const liToRemove = document.getElementById(`todo-${itemId}`);
-              liToRemove.remove();
-            } else {
-              console.error("刪除失敗");
-            }
-          } catch (e) {
-            console.error("刪除錯誤", e);
-          }
-        });
-        return button;
-      }
     </script>
   </body>
 </html>
